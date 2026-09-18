@@ -1,0 +1,244 @@
+================================================================================
+           AI CAREER INTELLIGENCE - RESUME ATS ANALYZER & SKILL EXTRACTOR
+================================================================================
+
+1. PROJECT OVERVIEW & OBJECTIVES
+--------------------------------------------------------------------------------
+AI Career Intelligence is an intelligent web application designed to help job
+seekers evaluate, score, and optimize their resumes against modern Applicant
+Tracking Systems (ATS) and industry hiring standards.
+
+Core User Workflow:
+  1. User lands on the Dashboard.
+  2. User inputs their resume (drag-and-drop PDF/TXT file or paste raw text).
+  3. User enters a Target Job Role (e.g., "Fullstack Engineer", "Data Scientist")
+     and optionally pastes a specific Job Description (JD).
+  4. User clicks "Analyze Resume".
+  5. The system parses the document, extracts candidate details, and submits the
+     profile to the AI evaluation engine.
+  6. The system displays an interactive results report and automatically saves
+     the evaluation to the local history database for future reference.
+
+Key Analysis Deliverables:
+  - ATS Compatibility Match Score (0 - 100%)
+  - Matched Skills (skills identified in both resume and target role)
+  - Missing Skills / Skill Gaps (critical competencies required to be competitive)
+  - Profile Strengths (achievements, strong action verbs, clarity, relevance)
+  - Profile Weaknesses (missing sections, weak phrasing, lack of metrics)
+  - Actionable ATS Recommendations (formatting advice, keywords to insert)
+  - Assessment History (searchable log of previous evaluations)
+
+
+2. ARCHITECTURE & TECH STACK
+--------------------------------------------------------------------------------
+- Web Framework:        Flask 3.x (using Application Factory & Blueprints)
+- Database:             SQLite via Flask-SQLAlchemy
+- AI Engine:            Google Gemini API (google-genai SDK, gemini-3.8-flash)
+- Local Fallback:       Rule-based & keyword matching engine (zero-downtime)
+- Document Parsing:     pypdf (extracts text from multi-page PDF documents)
+- Configuration:        python-dotenv (loads .env configuration securely)
+- Frontend:             HTML5, Jinja2 Templates, Responsive CSS3
+
+
+3. GOOGLE GEMINI API FREE TIER DETAILS
+--------------------------------------------------------------------------------
+- Cost:                 100% Free ($0)
+- Allowance:            Up to 15 Requests Per Minute (RPM)
+                        Up to 1,000,000 Tokens Per Minute (TPM)
+                        Up to 1,500 Requests Per Day (RPD)
+- Credit Card:          NOT required to register or use the free tier
+- Sign-up Link:         https://aistudio.google.com/
+- Zero-Downtime Guarantee:
+  The application includes a built-in local rule-based fallback analyzer.
+  If no API key is provided or if network limits are reached, the system
+  continues functioning seamlessly in Local Mode.
+
+
+4. COMPREHENSIVE STEP-BY-STEP IMPLEMENTATION PLAN
+--------------------------------------------------------------------------------
+
+PHASE 1: DEPENDENCIES & ENVIRONMENT SETUP
+--------------------------------------------------------------------------------
+Objective: Set up all project libraries, configuration flags, and secrets.
+
+1.1 File: requirements.txt
+    - Add 'google-genai>=2.3.0' for modern Google Gemini API support.
+    - Add 'pypdf>=4.0.0' for fast, robust PDF text extraction.
+    - Add 'python-dotenv>=1.0.0' for environment variable management.
+    - Ensure 'Flask>=3.0' and 'Flask-SQLAlchemy>=3.1' are maintained.
+
+1.2 File: config.py
+    - Import and call load_dotenv() to automatically read .env variables.
+    - Read GEMINI_API_KEY from environment with a safe default.
+    - Set MAX_CONTENT_LENGTH = 16 * 1024 * 1024 (16 MB upload limit).
+    - Set ALLOWED_EXTENSIONS = {'.pdf', '.txt'}.
+    - Configure SQLALCHEMY_DATABASE_URI pointing to local 'app.db'.
+
+1.3 File: .env.example
+    - Create a template instructing users where to place their GEMINI_API_KEY.
+
+
+PHASE 2: DATABASE LAYER
+--------------------------------------------------------------------------------
+Objective: Define relational schemas to persist resume analyses and candidate profiles.
+
+2.1 File: app/models.py
+    - Keep 'CareerProfile' model for user profile and target role tracking.
+    - Implement 'ResumeAnalysis' model:
+        * id: Integer primary key.
+        * candidate_name: String (detected candidate name or 'Candidate').
+        * target_role: String (target job role or title).
+        * match_score: Integer (0 - 100 percentage).
+        * summary: Text (executive summary of the candidate's match).
+        * analysis_data: JSON / Text (stores structured breakdown including
+          matched skills, missing skills, strengths, weaknesses, and tips).
+        * created_at: DateTime (timestamp of assessment).
+        * Helper methods: to_dict() for easy template and API serialization.
+
+
+PHASE 3: ATS INTELLIGENCE & PARSING SERVICE
+--------------------------------------------------------------------------------
+Objective: Build the core business logic for document extraction and evaluation.
+
+3.1 File: app/services/__init__.py
+    - Package initializer for application services.
+
+3.2 File: app/services/ats_service.py
+    Component A: Document Text Extractor
+      - extract_text_from_file(file_storage):
+        * Detects MIME type / extension (.pdf or .txt).
+        * For PDFs: Reads stream via pypdf.PdfReader, iterates through pages,
+          concatenates text, and normalizes whitespaces.
+        * For TXT: Decodes UTF-8 text with fallback to latin-1.
+        * Handles corrupted or empty files gracefully.
+
+    Component B: Gemini 3.8 Flash AI Evaluator
+      - analyze_resume_with_gemini(resume_text, target_role, job_description, api_key):
+        * Instantiates google.genai.Client(api_key=api_key).
+        * Sends specialized prompt to 'gemini-3.8-flash'.
+        * Uses structured JSON response schema requiring:
+            - candidate_name (string)
+            - detected_role (string)
+            - match_score (integer, 0-100)
+            - summary (string)
+            - matched_skills (list of strings)
+            - missing_skills (list of strings)
+            - strengths (list of strings)
+            - weaknesses (list of strings)
+            - recommendations (list of strings)
+            - formatting_advice (list of strings)
+
+    Component C: Intelligent Local Fallback Engine
+      - fallback_offline_analysis(resume_text, target_role, job_description):
+        * Activates automatically when GEMINI_API_KEY is not configured.
+        * Uses a comprehensive catalog of technology and professional skills
+          (Programming, Frameworks, Cloud, Databases, Methodologies, Soft Skills).
+        * Scans resume text against target role / job description keywords.
+        * Calculates an ATS match score based on keyword coverage and structure.
+        * Identifies matched skills, missing skills, and structural advice.
+        * Flags that the report was generated in 'Local Mode'.
+
+
+PHASE 4: APPLICATION ROUTES & CONTROLLERS
+--------------------------------------------------------------------------------
+Objective: Handle HTTP requests, form validations, and template rendering.
+
+4.1 File: app/__init__.py
+    - Inject context processor 'inject_ai_status()' to pass 'gemini_configured'
+      flag to every template automatically.
+    - Ensure tables are created automatically on app startup.
+
+4.2 File: app/routes.py
+    - Route 'GET /':
+        Renders index.html dashboard with upload tabs and input forms.
+    - Route 'POST /analyze':
+        * Validates file upload or pasted resume text.
+        * Checks if target role or job description is provided.
+        * Invokes ats_service.
+        * Saves the evaluation record to SQLite (ResumeAnalysis).
+        * Renders results.html with complete analysis data.
+    - Route 'GET /history':
+        Queries all ResumeAnalysis records ordered by created_at DESC.
+        Renders history.html.
+    - Route 'GET /analysis/<int:id>':
+        Fetches an individual analysis record by ID and renders results.html.
+    - Route 'GET /about':
+        Renders about.html explaining ATS mechanisms and scoring logic.
+
+
+PHASE 5: FRONTEND USER INTERFACE & TEMPLATES
+--------------------------------------------------------------------------------
+Objective: Create a modern, professional, accessible user experience.
+
+5.1 File: app/templates/base.html
+    - Navigation bar with brand logo, links (Analyzer, History, About).
+    - Dynamic AI status pill:
+        * 🟢 Gemini AI Active (when API key is present)
+        * 🟡 Local Mode Active (when running offline fallback)
+    - Footer with project details.
+
+5.2 File: app/templates/index.html
+    - Modern card-based input interface.
+    - Dual tabs: 'Upload Resume File (.pdf, .txt)' vs. 'Paste Resume Text'.
+    - Target Job Role input (e.g. 'Software Engineer', 'Data Analyst').
+    - Optional Job Description textarea for direct ATS matching.
+    - Submit button with interactive JavaScript loading spinner.
+
+5.3 File: app/templates/results.html
+    - Header with Candidate Name, Target Role, and Assessment Date.
+    - Visual ATS Score Meter:
+        * Color-coded: 80-100% (Green - Strong Match), 60-79% (Yellow - Moderate),
+          0-59% (Red - Needs Work).
+    - Skills Breakdown Grid:
+        * Matched Skills (green pill badges).
+        * Missing Skills / Gaps (red/amber pill badges).
+    - Two-column card section for Strengths and Weaknesses.
+    - Actionable ATS Recommendations & Formatting Advice card.
+    - Quick actions: 'Analyze Another Resume' and 'View in History'.
+
+5.4 File: app/templates/history.html
+    - Clean data table listing past evaluations.
+    - Columns: Candidate Name, Target Role, ATS Score Badge, Date, Actions.
+    - 'View Report' button linking to /analysis/<id>.
+    - Empty-state message if no evaluations have been recorded yet.
+
+5.5 File: app/templates/about.html
+    - Educational guide explaining what Applicant Tracking Systems look for.
+    - Explains how AI Career Intelligence extracts skills, checks formatting,
+      and recommends optimizations.
+
+5.6 File: app/static/css/style.css
+    - Clean typography and spacing.
+    - Card layouts, grid systems, and flexbox alignment.
+    - Score badge colors (green, amber, red).
+    - Smooth button hover states and tab switching.
+    - Fully responsive on mobile, tablet, and desktop screens.
+
+
+PHASE 6: TESTING & VERIFICATION
+--------------------------------------------------------------------------------
+1. Python syntax check: Ensure zero syntax or import errors across all files.
+2. Local fallback verification: Test resume analysis without an API key.
+3. Gemini AI verification: Test resume analysis with GEMINI_API_KEY.
+4. Database verification: Confirm analyses persist across app restarts in SQLite.
+5. UI responsiveness: Verify layout renders cleanly across viewports.
+
+
+5. HOW TO RUN THE PROJECT
+--------------------------------------------------------------------------------
+1. Install dependencies:
+   pip install -r requirements.txt
+
+2. (Optional) Set up your Gemini API Key:
+   Create a .env file in the project root:
+   GEMINI_API_KEY=your_actual_gemini_api_key_here
+
+3. Initialize the database:
+   flask init-db
+
+4. Start the application:
+   python run.py
+
+5. Open your web browser and navigate to:
+   http://127.0.0.1:5000/
+================================================================================
