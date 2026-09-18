@@ -5,19 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ title or "AI Career Intelligence" }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="navbar">
         <div class="nav-container">
-            <a href="{{ url_for('main.home') }}" class="brand">AI Career Intelligence</a>
-            <nav class="nav-links">
-                <a href="{{ url_for('main.home') }}">Home</a>
-                <a href="{{ url_for('main.about') }}">About</a>
-            </nav>
+            <a href="{{ url_for('main.home') }}" class="brand">
+                <span class="brand-icon">⚡</span>
+                <span>AI Career Intelligence</span>
+            </a>
+            <div class="nav-right">
+                <div class="engine-status">
+                    {% if gemini_configured %}
+                        <span class="status-pill status-gemini" title="Powered by Google Gemini 3.8 Flash">
+                            <span class="pulse-dot"></span> Gemini AI Active
+                        </span>
+                    {% else %}
+                        <span class="status-pill status-local" title="Running in offline mode. Add GEMINI_API_KEY to .env for full AI analysis">
+                            <span class="pulse-dot"></span> Local Mode
+                        </span>
+                    {% endif %}
+                </div>
+                <nav class="nav-links">
+                    <a href="{{ url_for('main.home') }}" class="nav-item">Analyzer</a>
+                    <a href="{{ url_for('main.history') }}" class="nav-item">History</a>
+                    <a href="{{ url_for('main.about') }}" class="nav-item">About</a>
+                </nav>
+            </div>
         </div>
     </header>
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+
+    <div class="content-wrapper">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                <span>{{ message }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <p><strong>AI Career Intelligence</strong> &mdash; Intelligent Resume ATS Analyzer &amp; Skill Extractor</p>
+            <p class="footer-subtext">Powered by Flask &amp; Google Gemini AI &bull; <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Get a free Gemini API Key</a></p>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

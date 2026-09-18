@@ -19,9 +19,17 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
 
+    # Context processor to make AI status available across all templates
+    @app.context_processor
+    def inject_ai_status():
+        api_key = app.config.get("GEMINI_API_KEY", "")
+        is_configured = bool(api_key and api_key != "your_gemini_api_key_here")
+        return {"gemini_configured": is_configured}
+
     # Import and register blueprints
     from app.routes import main
     app.register_blueprint(main)
+
 
     # CLI command to initialize database tables manually if needed
     @app.cli.command("init-db")
