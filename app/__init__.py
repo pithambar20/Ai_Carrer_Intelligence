@@ -12,11 +12,18 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
 
+    # Import models so SQLAlchemy is aware of them
+    from app import models  # noqa: F401
+
+    # Auto-create tables if they don't exist
+    with app.app_context():
+        db.create_all()
+
     # Import and register blueprints
     from app.routes import main
     app.register_blueprint(main)
 
-    # CLI command to initialize database tables
+    # CLI command to initialize database tables manually if needed
     @app.cli.command("init-db")
     def init_db():
         """Create database tables."""
@@ -24,4 +31,5 @@ def create_app(config_class=Config):
             db.create_all()
         print("Initialized the database.")
 
-    return app
+    return app
+
